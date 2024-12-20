@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotifyランキング</title>
+</head>
+<body>
+    <div id="ranking-container"></div>
+    <script src="script.js">
+        const axios = require('axios');
+
+        // Spotify APIのクライアント情報
+        const clientId = 'cff1a81cc68a4e5cb943e06070f9b01a';
+        const clientSecret = 'eb1b57df0ade4f07bdf8043358df19fd';
+
+        // トークンを取得する関数
+        async function getAccessToken() {
+            const response = await axios.post('https://accounts.spotify.com/api/token', null, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + Buffer.from(clientId + ':' + clientSecret).toString('base64')
+                },
+                params: {
+                    grant_type: 'client_credentials'
+                }
+            });
+            return response.data.access_token;
+        }
+        async function getArtistTopTracks(artistId, accessToken) {
+            const response = await axios.get(`https://api.spotify.com/v1/artists/${artistId}/top-tracks`, {
+                headers: {
+      '             Authorization': `Bearer ${accessToken}`
+                },
+                params: {
+                    market: 'JP' // 日本市場のデータを取得
+                }
+            });
+            return response.data.tracks;
+        }
+
+        // アーティストIDを取得する
+        async function searchArtist(name, accessToken) {
+            const response = await axios.get('https://api.spotify.com/v1/search', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                params: {
+                    q: name,
+                    type: 'artist',
+                    market: 'JP',
+                    limit: 1
+                }
+            });
+            return response.data.artists.items[0].id; // 最初のアーティストのIDを返す
+        }
+        const express = require('express');
+        const app = express();
+
+        app.get('/mrs-green-apple', async (req, res) => {
+            try {
+            const accessToken = await getAccessToken();
+            const artistId = await searchArtist('Mrs. GREEN APPLE', accessToken);
+            const topTracks = await getArtistTopTracks(artistId, accessToken);
+
+            let html = '<h1>Mrs. GREEN APPLE - ランキング</h1><ol>';
+            topTracks.forEach(track => {
+                html += `<li>${track.name} - <a href="${track.external_urls.spotify}">Spotifyで再生</a></li>`;
+            });
+            html += '</ol>';
+            res.send(html);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send('エラーが発生しました');
+            }
+        });
+
+        // サーバーを開始
+        const PORT = 3000;
+        app.listen(PORT, () => {
+        console.log(`サーバーがポート${PORT}で実行中です`);
+        });
+
+
+    </script>
+</body>
+</html>
+
